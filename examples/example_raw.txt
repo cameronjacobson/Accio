@@ -1,0 +1,62 @@
+GET
+8-bit - opCode
+16-bit unsigned - UTF length
+varies - length of UTF bytes  [storeName]
+boolean (1 byte, either zero or non-zero) should ALWAYS be zero [routingType]
+
+int32 keySize
+varies - length of keySize bytes
+boolean (are there transforms?)
+int32 size
+varies - length of size bytes
+
+  response:
+  16-bit unsigned 0 followed by results
+    results:
+    int32 size
+    varies [version+result] (version is formatted like:  '['.obj.', '.version.']'
+
+  exception: 16-bit unsigned non zero, the number is an error code
+    16-bit [size]
+    varies , [size] bytes for the message
+
+
+PUT
+8-bit - opCode
+16-bit unsigned - UTF length
+varies - length of UTF bytes  [storeName]
+boolean (1 byte, either zero or non-zero) [routingType]
+int32 keySize
+varies - length of keySize bytes
+int32 valueSize
+varies - length of valueSize bytes
+boolean (are there transforms?)
+int32 size
+varies - length of size bytes [transform]
+
+  response:
+  16-bit unsigned 0
+
+  exception: 16-bit unsigned non zero, the number is an error code
+    16-bit [size]
+    varies , [size] bytes for the message
+
+
+DELETE
+8-bit - opCode
+16-bit unsigned - UTF length
+varies - length of UTF bytes  [storeName]
+boolean (1 byte, either zero or non-zero) [routingType]
+int32 keySize
+varies - length of keySize bytes
+16-bit unsigned - versionSize
+varies - length of versionSize bytes
+
+  response:
+  16-bit unsigned 0
+
+  exception: 16-bit unsigned non zero, the number is an error code
+    16-bit [size]
+    varies , [size] bytes for the message
+
+
