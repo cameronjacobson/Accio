@@ -18,7 +18,6 @@ echo 'FINISHED IN: '.(microtime(true)-$start).' SECONDS'.PHP_EOL;
 //var_dump($response);
 //parsePutResponse($response);
 
-
 $start = microtime(true);
 echo 'GET:' .PHP_EOL;
 $response = get('test',$key);
@@ -29,7 +28,6 @@ $start = microtime(true);
 $response = delete('test',$key,256);
 echo 'FINISHED IN: '.(microtime(true)-$start).' SECONDS'.PHP_EOL;
 //parseDeleteResponse($response);
-
 
 function delete($store, $key, $version){
 
@@ -97,11 +95,23 @@ function send($serialized){
 }
 
 function bytesRequired($number){
+    $x=0;
+    do{ 
+        $tmp = empty($tmp) ? 0xff : (0xff + ($tmp << 8));
+        if($tmp === -1){
+            throw new Exception('too many bytes required for '.$number);
+        }
+        $x++;
+    } while(($number > $tmp));
+    return $x;
+}
+/*
+function bytesRequired($number){
 	$x=0;
 	while($number >= (0x01 << (8*++$x))){}
 	return $x;
 }
-
+*/
 function getSizeInBytes($version){
 	return 2+1+(1*(2+bytesRequired($version)))+8;
 }
