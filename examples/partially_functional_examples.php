@@ -8,12 +8,12 @@ define('HOST','localhost');
 define('PORT',8081);
 
 $key = 'mykey';
-$value = 'myvalue';
+$value = 'myvalue2';
 
 
 $start = microtime(true);
 echo 'PUT:'.$key.' '.$value.PHP_EOL;
-$response = put('test',$key,$value,256);
+$response = put('test',$key,$value,4);
 echo 'FINISHED IN: '.(microtime(true)-$start).' SECONDS'.PHP_EOL;
 //var_dump($response);
 //parsePutResponse($response);
@@ -22,10 +22,10 @@ $start = microtime(true);
 echo 'GET:' .PHP_EOL;
 $response = get('test',$key);
 echo 'FINISHED IN: '.(microtime(true)-$start).' SECONDS'.PHP_EOL;
-parseGetResponse($response);
+var_export(parseGetResponse($response));
 
 $start = microtime(true);
-$response = delete('test',$key,256);
+$response = delete('test',$key,4);
 echo 'FINISHED IN: '.(microtime(true)-$start).' SECONDS'.PHP_EOL;
 //parseDeleteResponse($response);
 
@@ -41,9 +41,9 @@ function delete($store, $key, $version){
 
 	// START clock.toBytes
 	$request.= pack('n', 1);
-	$request.= pack('C', bytesRequired($version));
+	$request.= pack('C', $bytesreq = bytesRequired($version));
 	$request.= pack('n', 0); // nodeid
-	$request.= pack('n', $version);
+	$request.= pack(packVersion($bytesreq),$version);
 	$request.= pack('d', microtime(true));
 	// END clock.toBytes
 
@@ -62,15 +62,33 @@ function put($storename, $key, $value, $version = 1){
 
 	// START version.toBytes
 	$request.= pack('n', 1); // versions.size
-	$request.= pack('C', bytesRequired($version));
+	$request.= pack('C', $bytesreq = bytesRequired($version));
 	$request.= pack('n', 0); // nodeid
-	$request.= pack('n', $version);
+	$request.= pack(packVersion($bytesreq),$version);
 	$request.= pack('d', microtime(true));
 	// END version.toBytes
 
 	$request.= $value;
 
 	return send($request);
+}
+
+function packVersion($bytesreq, $version){
+	switch($bytesreq){
+		case 1:
+			$version = 'C';
+			break;
+		case 2:
+			$version = 'n';
+			break;
+		case 3:
+			$version = 'C3';
+			break;
+		case 4:
+			$version = 'N';
+			break;
+	}
+	return $version;
 }
 
 function get($store,$key){
@@ -137,42 +155,79 @@ public class VoldemortOpCode {
 */
 
 function parseGetResponse($response){
+	$return = [];
+
 	$statuscode = unpack('n',substr($response,0,2));
 	$offset = 2;
 	echo 'STATUSCODE: '.$statuscode[1].PHP_EOL;
-	$numrecords = unpack('N',substr($response,$offset,4));
-	  $offset += 4;
-	echo 'NUMRECORDS: '.$numrecords[1].PHP_EOL;
 
-	for($x=0;$x<$numrecords[1];$x++){
-		$len = unpack('N',substr($response,$offset,4));
+	if(empty($statuscode[1])){
+		$numrecords = unpack('N',substr($response,$offset,4));
 		  $offset += 4;
+		echo 'NUMRECORDS: '.$numrecords[1].PHP_EOL;
 
-		$numversions = unpack('n',substr($response,$offset,2));
+		for($x=0;$x<$numrecords[1];$x++){
+			$len = unpack('N',substr($response,$offset,4)); // length of clock and value
+			  $offset += 4;
+			$return[$x]['clock'] = getClock($response,$offset);
+			$return[$x]['value'] = substr($response,$offset);//,$len[1]-$offset);
+		}
+		return $return;
+	}
+	else {
+		$errorcode = unpack('n',substr($response,$offset,2));
 		  $offset += 2;
-		  echo '  NUM VERSIONS: '.$numversions[1].PHP_EOL;
-
-		$versionsize = unpack('c',substr($response,$offset,1));
-		  $offset += 1;
-		  echo '  VERSION SIZE: '.$versionsize[1].PHP_EOL;
-
-	// LOOP
-		$nodeid = unpack('n',substr($response,$offset,2));
+		$errorlen = unpack('n',substr($response,$offset,2));
 		  $offset += 2;
-		  echo '    NODE ID: '.$nodeid[1].PHP_EOL;
-		$versionsize = unpack('c',substr($response,$offset,1));
-		  $offset += 1;
-		  echo '    VERSION SIZE: '.$versionsize[1].PHP_EOL;
-	// ENDLOOP
-		$timestamp = unpack('N/N',substr($response,$offset,8));
-		  $offset += 8;
-		  echo 'TIMESTAMP: '.$timestamp[1].' '.$timestamp[2].PHP_EOL;
-
-		$value = substr($response,$offset,$len[1]);
-		  $offset += strlen($value);
-		  echo ' VALUE LENGTH: '.strlen($value).PHP_EOL;
-		  echo ' VALUE: '.$value.PHP_EOL.PHP_EOL;
-
+		$error = substr($response,$offset,$errorlen[1]);
+		throw new Exception('ERROR: '.$errorcode[1].' - '.$error[1]);
 	}
 }
 
+function unpackVersion($versionSize){
+	switch($versionSize){
+		case 1:
+			$version = 'C';
+			break;
+		case 2:
+			$version = 'n';
+			break;
+		case 3:
+			$version = 'C3';
+			break;
+		case 4:
+			$version = 'N';
+			break;
+	}
+	return $version;
+}
+
+function getClock($response,&$offset){
+	$numentries = unpack('n',substr($response,$offset,2));
+	  $offset += 2;
+	$versionSize = unpack('C',substr($response,$offset,1));
+	  $offset += 1;
+	$entrysize = 2 + (int)$versionSize[1];
+	$minimumBytes = $offset+2+1+$numentries[1]*$entrysize[1]+8;
+
+	$entries = array();
+	for($x=0;$x<$numentries[1];$x++){
+		$nodeId = unpack('n',substr($response,$offset,2));
+		  $offset += 2;
+		$version = unpack(unpackVersion($versionSize[1]),substr($response, $offset, $versionSize[1]));
+		  $offset += $versionSize[1];
+		  $entries[$x]['node'] = $nodeId[1];
+		  $entries[$x]['version'] = $version[1];
+	}
+
+	$timestamp = unpack('d',substr($response,$offset,8));
+	  $offset += 8;
+
+	return [
+		'numentries'=>$numentries[1],
+		'versionsize'=>$versionSize[1],
+		'entrysize'=>$entrysize,
+		'entries'=>$entries,
+		'timestamp'=>$timestamp[1]
+	];
+}
