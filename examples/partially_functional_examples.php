@@ -14,7 +14,7 @@ $value2 = 'myvalue2';
 
 $start = microtime(true);
 
-for($x=1;$x<5;$x++){
+for($x=1;$x<2;$x++){
 
 	echo 'PUT:'.$key.' '.$value.','.$key2.' '.$value2.PHP_EOL;
 	$response = put('test',$key,$value,$x);
@@ -26,6 +26,12 @@ for($x=1;$x<5;$x++){
 	$response = get('test',$key);
 	$response = get('test',$key2);
 	var_export(parseGetResponse($response));
+	echo PHP_EOL;
+
+	echo 'GET VERSION:'.$key.','.$key2.PHP_EOL;
+	$response = getversion('test',$key);
+	$response = getversion('test',$key2);
+	var_export(parseGetVersionResponse($response));
 	echo PHP_EOL;
 
 	echo 'GET ALL:'.$key.','.$key2.PHP_EOL;
@@ -66,8 +72,39 @@ function parseDeleteResponse($response){
 	}
 }
 
-function delete($store, $key, $version){
+function parseGetVersionResponse($response){
+	$statuscode = unpack('n',substr($response,0,2));
+	$offset = 2;
+	if(empty($statuscode[1])){
+		$numversions = unpack('N',substr($response,$offset,4));
+		  $offset += 4;
+		$clocks = array();
+		for($x=0;$x<$numversions[1];$x++){
+			$clocklen = unpack('N',substr($response,$offset,4));
+			$offset += 4;
+			$clocks[] = getClock(substr($response, $offset, $clocklen[1]),$zero=0);
+			$offset += $clocklen[1];
+		}
+		return $clocks;
+	}
+	else {
+		list($errorcode,$error) = writeException($response,$offset);
+		throw new Exception('ERROR: '.$errorcode.' - '.$error);
+	}
+}
 
+function getversion($store, $key){
+	$request = pack('C', 10);
+	$request.= pack('n', strlen($store));
+	$request.= $store;
+	$request.= pack('C', 0);
+	$request.= pack('N', strlen($key));
+	$request.= $key;
+
+	return send($request);
+}
+
+function delete($store, $key, $version){
 	$request = pack('C', 3);
 	$request.= pack('n', strlen($store));
 	$request.= $store;
