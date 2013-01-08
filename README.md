@@ -12,6 +12,8 @@ examples/partially_working_examples.php
 
 ##PLEASE NOTE:
 
+* Supported operations: put, get, delete, getversion, and getall.  So based on what I see in the java client source, it appears we've now got full support for all vp0 protocol commands
+
 * There is only one script where I have partially working examples, and even then you have to manually change version numbers, likely along with several bugs.  I think I'm far enough along for this proof of concept to be taken to the next step.  Eventually I'll be cleaning up the example, and building the real implementation under 'src/':
 
 * Wouldn't recommend using this with 32-bit machine.  The binary protocol depends on 8-byte timestamp, which I'm unpacking with 'd' flag.
