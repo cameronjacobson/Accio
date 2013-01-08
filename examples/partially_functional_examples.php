@@ -17,15 +17,15 @@ for($x=0;$x<500;$x++){
 
 //	echo 'PUT:'.$key.' '.$value.PHP_EOL;
 	$response = put('test',$key,$value,$x);
-	//var_dump($response);
-	//parsePutResponse($response);
+//	var_export(parsePutResponse($response));
 
-//	echo 'GET:' .PHP_EOL;
+//	echo 'GET:'.PHP_EOL;
 	$response = get('test',$key);
 //	var_export(parseGetResponse($response));
 
+//	echo 'DELETE: '.$key.PHP_EOL;
 	$response = delete('test',$key,$x);
-	//parseDeleteResponse($response);
+//	var_export(parseDeleteResponse($response));
 }
 echo 'FINISHED IN: '.(microtime(true)-$start).' SECONDS'.PHP_EOL;
 
@@ -58,7 +58,7 @@ function put($storename, $key, $value, $version = 1){
 	$request.= pack('C', 0);
 	$request.= pack('N', strlen($key));
 	$request.= $key;
-	$request.= pack('N', getSizeInBytes($version)+strlen($value)); // + sizeInBytes
+	$request.= pack('N', getSizeInBytes($version)+strlen($value));
 
 	// START version.toBytes
 	$request.= pack('n', 1); // versions.size
@@ -105,8 +105,7 @@ function get($store,$key){
 function send($serialized){
 	$client = new SimpleHttpClient([
 		'host'=> HOST,
-		'port'=> PORT,
-		'contentType'=>'application/x-thrift'
+		'port'=> PORT
 	]);
 	$response = $client->post('/stores',$serialized);
 	return $response['body'];
@@ -123,13 +122,7 @@ function bytesRequired($number){
     } while(($number > $tmp));
     return $x;
 }
-/*
-function bytesRequired($number){
-	$x=0;
-	while($number >= (0x01 << (8*++$x))){}
-	return $x;
-}
-*/
+
 function getSizeInBytes($version){
 	return 2+1+(1*(2+bytesRequired($version)))+8;
 }
