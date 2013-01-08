@@ -12,22 +12,22 @@ $value = 'myvalue2';
 
 
 $start = microtime(true);
-echo 'PUT:'.$key.' '.$value.PHP_EOL;
-$response = put('test',$key,$value,4);
-echo 'FINISHED IN: '.(microtime(true)-$start).' SECONDS'.PHP_EOL;
-//var_dump($response);
-//parsePutResponse($response);
 
-$start = microtime(true);
-echo 'GET:' .PHP_EOL;
-$response = get('test',$key);
-echo 'FINISHED IN: '.(microtime(true)-$start).' SECONDS'.PHP_EOL;
-var_export(parseGetResponse($response));
+for($x=0;$x<500;$x++){
 
-$start = microtime(true);
-$response = delete('test',$key,4);
+//	echo 'PUT:'.$key.' '.$value.PHP_EOL;
+	$response = put('test',$key,$value,$x);
+	//var_dump($response);
+	//parsePutResponse($response);
+
+//	echo 'GET:' .PHP_EOL;
+	$response = get('test',$key);
+//	var_export(parseGetResponse($response));
+
+	$response = delete('test',$key,$x);
+	//parseDeleteResponse($response);
+}
 echo 'FINISHED IN: '.(microtime(true)-$start).' SECONDS'.PHP_EOL;
-//parseDeleteResponse($response);
 
 function delete($store, $key, $version){
 
