@@ -44,6 +44,7 @@ for($x=1;$x<2;$x++){
 	$response = delete('test',$key2,$x);
 	var_export(parseDeleteResponse($response) ? 'success' : 'failed');
 	echo PHP_EOL;
+
 }
 
 echo 'FINISHED IN: '.(microtime(true)-$start).' SECONDS'.PHP_EOL;
@@ -279,7 +280,7 @@ function writeException($response,&$offset){
 	$errorlen = unpack('n',substr($response,$offset,2));
 	  $offset += 2;
 	$error = substr($response,$offset,$errorlen[1]);
-	return array($errorcode[1],$error[1]);
+	return array($errorcode[1],$error);
 }
 
 function parseGetResponse($response){
