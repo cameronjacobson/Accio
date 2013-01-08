@@ -20,4 +20,4 @@ examples/partially_working_examples.php
 
 * Be sure to set ```request.format="vp0"``` [voldemort-native protocol version 0] in applicable server.properties file
 
-* Not really sure how far this project will go.  The documentation for building clients is sparse, and I was even having issues with limited support in PHP for ProtocolBuffers and some issues I was having with Thrift, and how it was formatting data vs how server was expecting it, so I basically ended up reverse engineering the protocol from the java source.
+* With regard to Thrift and Protocol Buffers, the serializer source code files state in comments that they're only meant to be used with java, with other language support possibly coming in the future, so I think at this time native vp0 protocol is the best bet for creating a PHP client.
