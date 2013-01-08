@@ -8,25 +8,35 @@ define('HOST','localhost');
 define('PORT',8081);
 
 $key = 'mykey';
-$value = 'myvalue2';
-
+$value = 'myvalue';
+$key2 = 'mykey2';
+$value2 = 'myvalue2';
 
 $start = microtime(true);
 
-for($x=0;$x<500;$x++){
+for($x=0;$x<5;$x++){
 
-//	echo 'PUT:'.$key.' '.$value.PHP_EOL;
+	echo 'PUT:'.$key.' '.$value.','.$key2.' '.$value2.PHP_EOL;
 	$response = put('test',$key,$value,$x);
+	$response = put('test',$key2,$value2,$x);
 //	var_export(parsePutResponse($response));
 
-//	echo 'GET:'.PHP_EOL;
+	echo 'GET:'.$key.','.$key2.PHP_EOL;
 	$response = get('test',$key);
-//	var_export(parseGetResponse($response));
+	$response = get('test',$key2);
+	var_export(parseGetResponse($response));
 
-//	echo 'DELETE: '.$key.PHP_EOL;
+	echo 'GET ALL:'.$key.','.$key2.PHP_EOL;
+	$response = getall('test',[$key,$key2]);
+	var_export(parseGetAllResponse($response));
+
+	echo 'DELETE: '.$key.','.$key2.PHP_EOL;
 	$response = delete('test',$key,$x);
+	$response = delete('test',$key2,$x);
 //	var_export(parseDeleteResponse($response));
 }
+
+
 echo 'FINISHED IN: '.(microtime(true)-$start).' SECONDS'.PHP_EOL;
 
 function delete($store, $key, $version){
@@ -73,7 +83,7 @@ function put($storename, $key, $value, $version = 1){
 	return send($request);
 }
 
-function packVersion($bytesreq, $version){
+function packVersion($bytesreq){
 	switch($bytesreq){
 		case 1:
 			$version = 'C';
@@ -89,6 +99,19 @@ function packVersion($bytesreq, $version){
 			break;
 	}
 	return $version;
+}
+
+function getall($store,Array $keys){
+	$request = pack('C',4);
+	$request.= pack('n',strlen($store));
+	$request.= $store;
+	$request.= pack('C',0);
+	$request.= pack('N',count($keys));
+	foreach($keys as $key){
+		$request.= pack('N',strlen($key));
+		$request.= $key;
+	}
+	return send($request);
 }
 
 function get($store,$key){
@@ -147,17 +170,63 @@ public class VoldemortOpCode {
 
 */
 
+function parseGetAllResponse($response){
+
+	$statuscode = unpack('n',substr($response,0,2));
+	$offset = 2;
+
+	if(empty($statuscode[1])){
+		$numkeys = unpack('N',substr($response,$offset,4));
+		  $offset += 4;
+		$results = array();
+		for($x=0;$x<$numkeys[1];$x++){
+			$keylen = unpack('N',substr($response,$offset,4));
+			  $offset += 4;
+			$key = substr($response,$offset,$keylen[1]);
+			  $offset += $keylen[1];
+			$data = getResult($response,$offset);
+			$results[$key] = $data;
+		}
+		return $results;
+	}
+	else {
+		list($errorcode,$error) = writeException($response,$offset);
+		throw new Exception('ERROR: '.$errorcode.' - '.$error);
+	}
+}
+
+function getResult($response,&$offset){
+	$numrecords = unpack('N',substr($response,$offset,4));
+	  $offset += 4;
+	$return = [];
+	for($x=0;$x<$numrecords[1];$x++){
+		$len = unpack('N',substr($response,$offset,4)); // length of clock and value
+		  $offset += 4;
+		$return[$x]['clock'] = getClock($response,$offset);
+		$return[$x]['value'] = substr($response,$offset,$len[1]-$return[$x]['clock']['clocklen']);
+		$offset += $len[1]-$return[$x]['clock']['clocklen'];
+	}
+	return $return;
+}
+
+function writeException($response,&$offset){
+	$errorcode = unpack('n',substr($response,$offset,2));
+	  $offset += 2;
+	$errorlen = unpack('n',substr($response,$offset,2));
+	  $offset += 2;
+	$error = substr($response,$offset,$errorlen[1]);
+	return array($errorcode[1],$error[1]);
+}
+
 function parseGetResponse($response){
 	$return = [];
 
 	$statuscode = unpack('n',substr($response,0,2));
 	$offset = 2;
-	echo 'STATUSCODE: '.$statuscode[1].PHP_EOL;
 
 	if(empty($statuscode[1])){
 		$numrecords = unpack('N',substr($response,$offset,4));
 		  $offset += 4;
-		echo 'NUMRECORDS: '.$numrecords[1].PHP_EOL;
 
 		for($x=0;$x<$numrecords[1];$x++){
 			$len = unpack('N',substr($response,$offset,4)); // length of clock and value
@@ -168,12 +237,8 @@ function parseGetResponse($response){
 		return $return;
 	}
 	else {
-		$errorcode = unpack('n',substr($response,$offset,2));
-		  $offset += 2;
-		$errorlen = unpack('n',substr($response,$offset,2));
-		  $offset += 2;
-		$error = substr($response,$offset,$errorlen[1]);
-		throw new Exception('ERROR: '.$errorcode[1].' - '.$error[1]);
+		list($errorcode,$error) = writeException($response,$offset);
+		throw new Exception('ERROR: '.$errorcode.' - '.$error);
 	}
 }
 
@@ -197,26 +262,31 @@ function unpackVersion($versionSize){
 
 function getClock($response,&$offset){
 	$numentries = unpack('n',substr($response,$offset,2));
+	  $clocklen = 2;
 	  $offset += 2;
 	$versionSize = unpack('C',substr($response,$offset,1));
+	  $clocklen += 1;
 	  $offset += 1;
 	$entrysize = 2 + (int)$versionSize[1];
-	$minimumBytes = $offset+2+1+$numentries[1]*$entrysize[1]+8;
+	$minimumBytes = $offset+2+1+$numentries[1]*$entrysize+8;
 
 	$entries = array();
 	for($x=0;$x<$numentries[1];$x++){
 		$nodeId = unpack('n',substr($response,$offset,2));
+		  $clocklen += 2;
 		  $offset += 2;
 		$version = unpack(unpackVersion($versionSize[1]),substr($response, $offset, $versionSize[1]));
 		  $offset += $versionSize[1];
+		  $clocklen += $versionSize[1];
 		  $entries[$x]['node'] = $nodeId[1];
 		  $entries[$x]['version'] = $version[1];
 	}
 
 	$timestamp = unpack('d',substr($response,$offset,8));
-	  $offset += 8;
-
+	$clocklen += 8;
+	$offset+=8;
 	return [
+		'clocklen'=>$clocklen,
 		'numentries'=>$numentries[1],
 		'versionsize'=>$versionSize[1],
 		'entrysize'=>$entrysize,
