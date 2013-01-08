@@ -14,30 +14,57 @@ $value2 = 'myvalue2';
 
 $start = microtime(true);
 
-for($x=0;$x<5;$x++){
+for($x=1;$x<5;$x++){
 
 	echo 'PUT:'.$key.' '.$value.','.$key2.' '.$value2.PHP_EOL;
 	$response = put('test',$key,$value,$x);
 	$response = put('test',$key2,$value2,$x);
-//	var_export(parsePutResponse($response));
+	var_export(parsePutResponse($response) ? 'success' : 'failed');
+	echo PHP_EOL;
 
 	echo 'GET:'.$key.','.$key2.PHP_EOL;
 	$response = get('test',$key);
 	$response = get('test',$key2);
 	var_export(parseGetResponse($response));
+	echo PHP_EOL;
 
 	echo 'GET ALL:'.$key.','.$key2.PHP_EOL;
 	$response = getall('test',[$key,$key2]);
 	var_export(parseGetAllResponse($response));
+	echo PHP_EOL;
 
 	echo 'DELETE: '.$key.','.$key2.PHP_EOL;
 	$response = delete('test',$key,$x);
 	$response = delete('test',$key2,$x);
-//	var_export(parseDeleteResponse($response));
+	var_export(parseDeleteResponse($response) ? 'success' : 'failed');
+	echo PHP_EOL;
 }
 
-
 echo 'FINISHED IN: '.(microtime(true)-$start).' SECONDS'.PHP_EOL;
+
+function parsePutResponse($response){
+	$statuscode = unpack('n',substr($response,0,2));
+	$offset = 2;
+	if(empty($statuscode[1])){
+		return true;
+	}
+	else {
+		list($errorcode,$error) = writeException($response,$offset);
+		throw new Exception('ERROR: '.$errorcode.' - '.$error);
+	}
+}
+
+function parseDeleteResponse($response){
+	$statuscode = unpack('n',substr($response,0,2));
+	$offset = 2;
+	if(empty($statuscode[1])){
+		return true;
+	}
+	else {
+		list($errorcode,$error) = writeException($response,$offset);
+		throw new Exception('ERROR: '.$errorcode.' - '.$error);
+	}
+}
 
 function delete($store, $key, $version){
 
