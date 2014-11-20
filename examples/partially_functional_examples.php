@@ -4,7 +4,7 @@ require_once(dirname(__DIR__).'/vendor/autoload.php');
 
 use SimpleHttpClient\SimpleHttpClient;
 
-define('HOST','localhost');
+define('HOST','127.0.0.1');
 define('PORT',8081);
 
 $key = 'mykey';
@@ -38,13 +38,13 @@ for($x=1;$x<2;$x++){
 	$response = getall('test',[$key,$key2]);
 	var_export(parseGetAllResponse($response));
 	echo PHP_EOL;
-
+/*
 	echo 'DELETE: '.$key.','.$key2.PHP_EOL;
 	$response = delete('test',$key,$x);
 	$response = delete('test',$key2,$x);
 	var_export(parseDeleteResponse($response) ? 'success' : 'failed');
 	echo PHP_EOL;
-
+*/
 }
 
 echo 'FINISHED IN: '.(microtime(true)-$start).' SECONDS'.PHP_EOL;
@@ -195,8 +195,14 @@ function send($serialized){
 		'host'=> HOST,
 		'port'=> PORT
 	]);
-	$response = $client->post('/stores',$serialized);
-	return $response['body'];
+	$client->post('/stores',$serialized);
+
+        $client->fetch();
+        $response = $client->getBuffers('body');
+        $client->flush();
+
+
+	return $response;
 }
 
 function bytesRequired($number){
