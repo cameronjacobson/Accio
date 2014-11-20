@@ -38,13 +38,13 @@ for($x=1;$x<2;$x++){
 	$response = getall('test',[$key,$key2]);
 	var_export(parseGetAllResponse($response));
 	echo PHP_EOL;
-/*
+
 	echo 'DELETE: '.$key.','.$key2.PHP_EOL;
 	$response = delete('test',$key,$x);
 	$response = delete('test',$key2,$x);
 	var_export(parseDeleteResponse($response) ? 'success' : 'failed');
 	echo PHP_EOL;
-*/
+
 }
 
 echo 'FINISHED IN: '.(microtime(true)-$start).' SECONDS'.PHP_EOL;
